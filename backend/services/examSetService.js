@@ -60,14 +60,18 @@ const getExamSetsByAllCategories = async () => {
                   'name', es.name,
                   'difficulty', es.difficulty,
                   'description', es.description,
-                  'questionCount', COUNT(esq.question_id)
+                  'questionCount', es.question_count
                 ) ORDER BY es.difficulty
               ) FILTER (WHERE es.id IS NOT NULL),
               '[]'::json
             ) as exam_sets
      FROM categories c
-     LEFT JOIN exam_sets es ON c.id = es.category_id
-     LEFT JOIN exam_set_questions esq ON es.id = esq.exam_set_id
+     LEFT JOIN (
+       SELECT es.*, COUNT(esq.question_id) as question_count
+       FROM exam_sets es
+       LEFT JOIN exam_set_questions esq ON es.id = esq.exam_set_id
+       GROUP BY es.id
+     ) es ON c.id = es.category_id
      GROUP BY c.id, c.name
      ORDER BY c.name ASC`
   );
