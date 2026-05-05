@@ -254,7 +254,7 @@ export default function QuizPage({ user, onLogout }) {
                 : 'bg-gray-600 text-white hover:bg-gray-700'
             }`}
           >
-            [<] Previous
+            [{"<"}] Previous
           </button>
 
           {currentQuestionIndex < questions.length - 1 ? (
@@ -262,7 +262,7 @@ export default function QuizPage({ user, onLogout }) {
               onClick={handleNext}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
             >
-              Next [>]
+              Next [{">"}]
             </button>
           ) : (
             <button
