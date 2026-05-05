@@ -247,7 +247,9 @@ const submitQuiz = async (sessionId) => {
     [score, normalizedSessionId]
   );
 
-  return { sessionId: normalizedSessionId, score, totalQuestions: rows.length };
+  const percentage = rows.length > 0 ? Math.round((score / rows.length) * 100) : 0;
+
+  return { sessionId: normalizedSessionId, score, totalQuestions: rows.length, percentage };
 };
 
 module.exports = {

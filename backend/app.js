@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const adminRoutes = require("./routes/adminRoutes");
 const quizRoutes = require("./routes/quizRoutes");
+const seedRoutes = require("./routes/seedRoutes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const pool = require("./config/db");
 
@@ -34,6 +35,7 @@ app.get("/health", async (req, res) => {
 
 app.use("/admin", adminRoutes);
 app.use("/quiz", quizRoutes);
+app.use("/dev", seedRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
