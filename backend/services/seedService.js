@@ -1,4 +1,6 @@
 const pool = require("../config/db");
+const fs = require("fs");
+const path = require("path");
 
 const programmingLanguages = {
   C: {
@@ -119,6 +121,15 @@ const seedDatabase = async () => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    // Run migrations first
+    console.log("[*] Running migrations...");
+    const migrationFile = path.join(__dirname, "../migrations/003_add_exam_sets.sql");
+    if (fs.existsSync(migrationFile)) {
+      const migrationSQL = fs.readFileSync(migrationFile, "utf-8");
+      await client.query(migrationSQL);
+      console.log("[✓] Migrations completed");
+    }
 
     // Clear existing data
     console.log("[*] Deleting existing data...");
