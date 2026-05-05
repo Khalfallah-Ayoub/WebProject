@@ -4,10 +4,14 @@ const { asyncHandler } = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
-// Only allow seeding in development or with special key
+// Allow seeding in development (Render environment)
 router.post("/seed/programming", asyncHandler(async (req, res) => {
+  // Allow seeding in development or with valid key
   const seedKey = req.body.key || req.headers['x-seed-key'];
-  if (seedKey !== process.env.SEED_KEY && process.env.NODE_ENV === 'production') {
+  const isProduction = process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV !== 'preview';
+
+  // Allow if: development mode, or valid key provided, or Render preview
+  if (isProduction && seedKey !== process.env.SEED_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
