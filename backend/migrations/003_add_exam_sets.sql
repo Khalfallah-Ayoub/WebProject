@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS exam_sets (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-  difficulty ENUM ('beginner', 'intermediate', 'advanced') NOT NULL DEFAULT 'beginner',
+  difficulty VARCHAR(20) NOT NULL DEFAULT 'beginner' CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
   description TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(category_id, name)
