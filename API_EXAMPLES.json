@@ -1,4 +1,7 @@
-{
+رايت عديد من المشاكل خاصة ب category
+الادمين يجب ان يكون له accesses
+لاضافة categorie او حذفها وتعديلها
+كيف يمكن فعل ذلك هل هوم موجود او لا كيف يمكن اضافة هل قاعدة البيانات الحلية تتيح ذلك{
   "apiBaseUrl": "https://webproject-x7ch.onrender.com",
   "lastTested": "2026-05-05",
   "endpoints": [
