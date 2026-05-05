@@ -11,6 +11,7 @@ export default function LoginPage({ onLogin }) {
   const [categoriesWithExamSets, setCategoriesWithExamSets] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedExamSet, setSelectedExamSet] = useState(null);
+  const [loadingExamSets, setLoadingExamSets] = useState(false);
 
   useEffect(() => {
     if (userType === 'student' && step === 'selectExamSet') {
@@ -19,11 +20,21 @@ export default function LoginPage({ onLogin }) {
   }, [userType, step]);
 
   const fetchCategories = async () => {
+    setLoadingExamSets(true);
     try {
       const response = await getExamSetsByAllCategories();
-      setCategoriesWithExamSets(response.categoriesWithExamSets || []);
+      const categories = response.categoriesWithExamSets || [];
+      // Filter out categories with no exam sets
+      const filtered = categories.filter(cat => cat.exam_sets && cat.exam_sets.length > 0);
+      setCategoriesWithExamSets(filtered);
+      if (filtered.length === 0) {
+        setError('No exam sets available. Contact admin to create exam sets.');
+      }
     } catch (err) {
       console.error('Failed to fetch categories:', err);
+      setError('Failed to load exam sets. Please try again.');
+    } finally {
+      setLoadingExamSets(false);
     }
   };
 
@@ -222,6 +233,11 @@ export default function LoginPage({ onLogin }) {
                 </div>
               )}
 
+              {loadingExamSets ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Loading test groups...</p>
+                </div>
+              ) : (
               <div className="space-y-4 mb-6">
                 {categoriesWithExamSets.map((category) => (
                   <div key={category.id}>
@@ -262,6 +278,7 @@ export default function LoginPage({ onLogin }) {
                   </div>
                 ))}
               </div>
+              )}
 
               <form onSubmit={handleStudentQuizStart}>
                 <button

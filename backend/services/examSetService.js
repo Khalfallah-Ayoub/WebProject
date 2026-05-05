@@ -53,14 +53,17 @@ const getExamSetsByCategory = async (categoryId) => {
 const getExamSetsByAllCategories = async () => {
   const result = await pool.query(
     `SELECT c.id, c.name,
-            json_agg(
-              jsonb_build_object(
-                'id', es.id,
-                'name', es.name,
-                'difficulty', es.difficulty,
-                'description', es.description,
-                'questionCount', COUNT(esq.question_id)
-              ) ORDER BY es.difficulty
+            COALESCE(
+              json_agg(
+                jsonb_build_object(
+                  'id', es.id,
+                  'name', es.name,
+                  'difficulty', es.difficulty,
+                  'description', es.description,
+                  'questionCount', COUNT(esq.question_id)
+                ) ORDER BY es.difficulty
+              ) FILTER (WHERE es.id IS NOT NULL),
+              '[]'::json
             ) as exam_sets
      FROM categories c
      LEFT JOIN exam_sets es ON c.id = es.category_id

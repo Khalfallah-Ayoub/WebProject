@@ -33,6 +33,13 @@ export default function AdminDashboard({ user, onLogout }) {
     answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }],
   });
 
+  // Results filter states
+  const [resultsFilter, setResultsFilter] = useState({
+    username: '',
+    minPercentage: '',
+    maxPercentage: '',
+  });
+
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -246,6 +253,16 @@ export default function AdminDashboard({ user, onLogout }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Filter results based on client-side filters
+  const getFilteredResults = () => {
+    return results.filter(result => {
+      const usernameMatch = result.username.toLowerCase().includes(resultsFilter.username.toLowerCase());
+      const minMatch = resultsFilter.minPercentage === '' || result.percentage >= parseInt(resultsFilter.minPercentage);
+      const maxMatch = resultsFilter.maxPercentage === '' || result.percentage <= parseInt(resultsFilter.maxPercentage);
+      return usernameMatch && minMatch && maxMatch;
+    });
   };
 
   return (
@@ -612,50 +629,102 @@ export default function AdminDashboard({ user, onLogout }) {
 
         {/* Results Tab */}
         {activeTab === 'results' && (
-          <div className="card">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">[R] Quiz Results</h2>
-            {loading ? (
-              <p className="text-gray-600">Loading...</p>
-            ) : results.length === 0 ? (
-              <p className="text-gray-600">No quiz results yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-100 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-gray-700 font-semibold">Username</th>
-                      <th className="px-4 py-2 text-center text-gray-700 font-semibold">Score</th>
-                      <th className="px-4 py-2 text-center text-gray-700 font-semibold">Percentage</th>
-                      <th className="px-4 py-2 text-left text-gray-700 font-semibold">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((result, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-700">{result.username}</td>
-                        <td className="px-4 py-3 text-center text-gray-700">
-                          {result.score}/{result.totalQuestions}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            result.percentage >= 80
-                              ? 'bg-green-100 text-green-800'
-                              : result.percentage >= 60
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {result.percentage}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">
-                          {new Date(result.finishedAt).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="space-y-6">
+            {/* Filter Section */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[F] Filter Results</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Username</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="Search by username..."
+                    value={resultsFilter.username}
+                    onChange={(e) => setResultsFilter({ ...resultsFilter, username: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Min Percentage</label>
+                  <input
+                    type="number"
+                    className="input w-full"
+                    placeholder="0"
+                    min="0"
+                    max="100"
+                    value={resultsFilter.minPercentage}
+                    onChange={(e) => setResultsFilter({ ...resultsFilter, minPercentage: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Max Percentage</label>
+                  <input
+                    type="number"
+                    className="input w-full"
+                    placeholder="100"
+                    min="0"
+                    max="100"
+                    value={resultsFilter.maxPercentage}
+                    onChange={(e) => setResultsFilter({ ...resultsFilter, maxPercentage: e.target.value })}
+                  />
+                </div>
               </div>
-            )}
+              <button
+                onClick={() => setResultsFilter({ username: '', minPercentage: '', maxPercentage: '' })}
+                className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
+              >
+                [C] Clear Filters
+              </button>
+            </div>
+
+            {/* Results Table */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[R] Quiz Results</h2>
+              {loading ? (
+                <p className="text-gray-600">Loading...</p>
+              ) : getFilteredResults().length === 0 ? (
+                <p className="text-gray-600">
+                  {results.length === 0 ? 'No quiz results yet.' : 'No results match the selected filters.'}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 border-b">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-gray-700 font-semibold">Username</th>
+                        <th className="px-4 py-2 text-center text-gray-700 font-semibold">Score</th>
+                        <th className="px-4 py-2 text-center text-gray-700 font-semibold">Percentage</th>
+                        <th className="px-4 py-2 text-left text-gray-700 font-semibold">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getFilteredResults().map((result, index) => (
+                        <tr key={index} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3 text-gray-700">{result.username}</td>
+                          <td className="px-4 py-3 text-center text-gray-700">
+                            {result.score}/{result.total_questions}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              result.percentage >= 80
+                                ? 'bg-green-100 text-green-800'
+                                : result.percentage >= 60
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {result.percentage}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 text-sm">
+                            {new Date(result.finished_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
