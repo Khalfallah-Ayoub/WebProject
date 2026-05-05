@@ -43,7 +43,7 @@ const fetchSessionQuestions = async (sessionId) => {
   return mapQuestions(rows);
 };
 
-const startQuiz = async (username) => {
+const startQuiz = async (username, examSetId = null) => {
   const normalizedUser = typeof username === "string" ? username.trim() : "";
   if (!normalizedUser) {
     const error = new Error("username is required");
@@ -51,23 +51,44 @@ const startQuiz = async (username) => {
     throw error;
   }
 
-  const settingsResult = await pool.query(
-    "SELECT number_of_questions FROM settings ORDER BY id LIMIT 1"
-  );
-  const desiredCount = settingsResult.rows[0]?.number_of_questions || 10;
+  const normalizedExamSetId = examSetId ? Number(examSetId) : null;
 
-  const { rows: questionRows } = await pool.query("SELECT id FROM questions");
-  const questionIds = questionRows.map((row) => row.id);
-  if (questionIds.length === 0) {
-    const error = new Error("No questions available");
-    error.status = 400;
-    throw error;
+  let selectedIds = [];
+
+  if (normalizedExamSetId) {
+    // Get questions from specific exam set
+    const { rows: examSetRows } = await pool.query(
+      `SELECT question_id FROM exam_set_questions WHERE exam_set_id = $1`,
+      [normalizedExamSetId]
+    );
+
+    if (examSetRows.length === 0) {
+      const error = new Error("No questions in this exam set");
+      error.status = 400;
+      throw error;
+    }
+
+    selectedIds = examSetRows.map(row => row.question_id);
+  } else {
+    // Get random questions (original behavior)
+    const settingsResult = await pool.query(
+      "SELECT number_of_questions FROM settings ORDER BY id LIMIT 1"
+    );
+    const desiredCount = settingsResult.rows[0]?.number_of_questions || 10;
+
+    const { rows: questionRows } = await pool.query("SELECT id FROM questions");
+    const questionIds = questionRows.map((row) => row.id);
+    if (questionIds.length === 0) {
+      const error = new Error("No questions available");
+      error.status = 400;
+      throw error;
+    }
+
+    selectedIds = shuffle(questionIds).slice(
+      0,
+      Math.min(desiredCount, questionIds.length)
+    );
   }
-
-  const selectedIds = shuffle(questionIds).slice(
-    0,
-    Math.min(desiredCount, questionIds.length)
-  );
 
   const client = await pool.connect();
   try {
