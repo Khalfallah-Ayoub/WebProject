@@ -95,12 +95,18 @@ export const getAdminResults = async (token) => {
   return response.json();
 };
 
+// Exam Sets APIs
+export const getExamSetsByAllCategories = async () => {
+  const response = await fetch(`${API_URL}/admin/exam-sets`);
+  return response.json();
+};
+
 // Quiz APIs
-export const startQuiz = async (username) => {
+export const startQuiz = async (username, examSetId = null) => {
   const response = await fetch(`${API_URL}/quiz/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ username, examSetId }),
   });
   return response.json();
 };
