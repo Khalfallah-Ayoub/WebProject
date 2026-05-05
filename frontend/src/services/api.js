@@ -95,9 +95,9 @@ export const getAdminResults = async (token) => {
   return response.json();
 };
 
-// Exam Sets APIs
+// Exam Sets APIs - Public endpoint for students
 export const getExamSetsByAllCategories = async () => {
-  const response = await fetch(`${API_URL}/admin/exam-sets`);
+  const response = await fetch(`${API_URL}/quiz/categories`);
   return response.json();
 };
 
