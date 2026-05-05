@@ -40,6 +40,13 @@ export default function AdminDashboard({ user, onLogout }) {
     maxPercentage: '',
   });
 
+  // Questions filter states
+  const [questionsFilter, setQuestionsFilter] = useState({
+    title: '',
+    categoryId: '',
+    type: '',
+  });
+
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -265,6 +272,16 @@ export default function AdminDashboard({ user, onLogout }) {
     });
   };
 
+  // Filter questions based on client-side filters
+  const getFilteredQuestions = () => {
+    return questions.filter(question => {
+      const titleMatch = question.title.toLowerCase().includes(questionsFilter.title.toLowerCase());
+      const categoryMatch = questionsFilter.categoryId === '' || question.categoryId.toString() === questionsFilter.categoryId;
+      const typeMatch = questionsFilter.type === '' || question.type === questionsFilter.type;
+      return titleMatch && categoryMatch && typeMatch;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       {/* Header */}
@@ -437,6 +454,54 @@ export default function AdminDashboard({ user, onLogout }) {
         {/* Questions Tab */}
         {activeTab === 'questions' && (
           <div className="space-y-6">
+            {/* Filter Section */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[F] Filter Questions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Question Title</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="Search by title..."
+                    value={questionsFilter.title}
+                    onChange={(e) => setQuestionsFilter({ ...questionsFilter, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Category</label>
+                  <select
+                    className="input w-full"
+                    value={questionsFilter.categoryId}
+                    onChange={(e) => setQuestionsFilter({ ...questionsFilter, categoryId: e.target.value })}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Type</label>
+                  <select
+                    className="input w-full"
+                    value={questionsFilter.type}
+                    onChange={(e) => setQuestionsFilter({ ...questionsFilter, type: e.target.value })}
+                  >
+                    <option value="">All Types</option>
+                    <option value="SCQ">SCQ (Single Choice)</option>
+                    <option value="MCQ">MCQ (Multiple Choice)</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuestionsFilter({ title: '', categoryId: '', type: '' })}
+                className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
+              >
+                [C] Clear Filters
+              </button>
+            </div>
+
             {/* Create/Edit Question Form */}
             {(!showQuestionForm && !editingQuestionId) && (
               <div className="card">
@@ -576,14 +641,16 @@ export default function AdminDashboard({ user, onLogout }) {
 
             {/* Questions List */}
             <div className="card">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">[*] Questions</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[*] Questions ({getFilteredQuestions().length})</h2>
               {loading && !questions.length ? (
                 <p className="text-gray-600">Loading...</p>
-              ) : questions.length === 0 ? (
-                <p className="text-gray-600">No questions yet. Create one above!</p>
+              ) : getFilteredQuestions().length === 0 ? (
+                <p className="text-gray-600">
+                  {questions.length === 0 ? 'No questions yet. Create one above!' : 'No questions match the selected filters.'}
+                </p>
               ) : (
                 <div className="space-y-4">
-                  {questions.map((question) => (
+                  {getFilteredQuestions().map((question) => (
                     <div key={question.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">

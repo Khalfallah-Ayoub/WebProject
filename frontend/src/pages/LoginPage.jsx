@@ -24,15 +24,12 @@ export default function LoginPage({ onLogin }) {
     try {
       const response = await getExamSetsByAllCategories();
       const categories = response.categoriesWithExamSets || [];
-      // Filter out categories with no exam sets
-      const filtered = categories.filter(cat => cat.exam_sets && cat.exam_sets.length > 0);
-      setCategoriesWithExamSets(filtered);
-      if (filtered.length === 0) {
-        setError('No exam sets available. Contact admin to create exam sets.');
-      }
+      // Don't filter - show all categories, even if no exam sets
+      setCategoriesWithExamSets(categories);
+      setError('');
     } catch (err) {
       console.error('Failed to fetch categories:', err);
-      setError('Failed to load exam sets. Please try again.');
+      setError('Failed to load categories. Please try again.');
     } finally {
       setLoadingExamSets(false);
     }
@@ -69,7 +66,9 @@ export default function LoginPage({ onLogin }) {
       return;
     }
 
-    if (!selectedExamSet && selectedCategory && selectedCategory.exam_sets?.length > 0) {
+    // Allow starting quiz without exam set selection (will use random questions)
+    // But if category has exam sets, user must select one
+    if (!selectedExamSet && selectedCategory && selectedCategory.exam_sets && selectedCategory.exam_sets.length > 0) {
       setError('Please select an exam set');
       return;
     }
@@ -237,6 +236,10 @@ export default function LoginPage({ onLogin }) {
                 <div className="text-center py-8">
                   <p className="text-gray-600">Loading test groups...</p>
                 </div>
+              ) : categoriesWithExamSets.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No categories available. Please contact admin.</p>
+                </div>
               ) : (
               <div className="space-y-4 mb-6">
                 {categoriesWithExamSets.map((category) => (
@@ -253,12 +256,15 @@ export default function LoginPage({ onLogin }) {
                       }`}
                     >
                       {category.name}
-                      {selectedCategory?.id === category.id && category.exam_sets && (
+                      {selectedCategory?.id === category.id && category.exam_sets && category.exam_sets.length > 0 && (
                         <span className="text-sm ml-2">({category.exam_sets.length} [*] groups)</span>
+                      )}
+                      {selectedCategory?.id === category.id && (!category.exam_sets || category.exam_sets.length === 0) && (
+                        <span className="text-sm ml-2">[No groups created]</span>
                       )}
                     </button>
 
-                    {selectedCategory?.id === category.id && category.exam_sets && (
+                    {selectedCategory?.id === category.id && category.exam_sets && category.exam_sets.length > 0 && (
                       <div className="mt-2  space-y-2 ml-4">
                         {category.exam_sets.map((examSet) => (
                           <button
@@ -283,9 +289,9 @@ export default function LoginPage({ onLogin }) {
               <form onSubmit={handleStudentQuizStart}>
                 <button
                   type="submit"
-                  disabled={loading || !selectedExamSet}
+                  disabled={loading}
                   className={`w-full py-2 rounded-lg font-semibold text-white transition-all ${
-                    loading || !selectedExamSet
+                    loading
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-green-600 hover:bg-green-700'
                   }`}
