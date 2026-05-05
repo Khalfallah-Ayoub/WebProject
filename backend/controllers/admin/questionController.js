@@ -2,7 +2,13 @@ const {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  getAllQuestionsWithAnswers,
 } = require("../../services/questionService");
+
+const getAdminQuestions = async (req, res) => {
+  const result = await getAllQuestionsWithAnswers();
+  res.json(result);
+};
 
 const createAdminQuestion = async (req, res) => {
   const result = await createQuestion({
@@ -31,6 +37,7 @@ const deleteAdminQuestion = async (req, res) => {
 };
 
 module.exports = {
+  getAdminQuestions,
   createAdminQuestion,
   updateAdminQuestion,
   deleteAdminQuestion,

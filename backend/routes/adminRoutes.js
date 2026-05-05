@@ -1,6 +1,7 @@
 const express = require("express");
 const { loginAdmin } = require("../controllers/admin/authController");
 const {
+  getAdminQuestions,
   createAdminQuestion,
   updateAdminQuestion,
   deleteAdminQuestion,
@@ -30,6 +31,7 @@ router.put("/categories/:id", asyncHandler(updateAdminCategory));
 router.delete("/categories/:id", asyncHandler(deleteAdminCategory));
 
 // Question management routes (protected)
+router.get("/questions", asyncHandler(getAdminQuestions));
 router.post("/questions", asyncHandler(createAdminQuestion));
 router.put("/questions/:id", asyncHandler(updateAdminQuestion));
 router.delete("/questions/:id", asyncHandler(deleteAdminQuestion));

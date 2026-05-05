@@ -218,8 +218,30 @@ const deleteQuestion = async (id) => {
   return { deleted: true };
 };
 
+const getAllQuestionsWithAnswers = async () => {
+  const result = await pool.query(
+    `SELECT q.id, q.title, q.type, q.category_id as "categoryId",
+            array_agg(jsonb_build_object('id', a.id, 'text', a.text, 'isCorrect', a.is_correct)) as "answers"
+     FROM questions q
+     LEFT JOIN answers a ON q.id = a.question_id
+     GROUP BY q.id, q.title, q.type, q.category_id
+     ORDER BY q.id`
+  );
+
+  return {
+    questions: result.rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      type: row.type,
+      categoryId: row.categoryId,
+      answers: row.answers || [],
+    })),
+  };
+};
+
 module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  getAllQuestionsWithAnswers,
 };
