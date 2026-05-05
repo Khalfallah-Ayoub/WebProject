@@ -125,6 +125,13 @@ const seedDatabase = async () => {
     // Run migrations first - with error handling
     console.log("[*] Running migrations...");
     try {
+      // Try to drop old ENUM type if it exists
+      try {
+        await client.query("DROP TYPE IF EXISTS difficulty CASCADE");
+      } catch (e) {
+        console.log("[!] Could not drop ENUM type");
+      }
+
       const migrationFile = path.join(__dirname, "../migrations/003_add_exam_sets.sql");
       if (fs.existsSync(migrationFile)) {
         const migrationSQL = fs.readFileSync(migrationFile, "utf-8");
