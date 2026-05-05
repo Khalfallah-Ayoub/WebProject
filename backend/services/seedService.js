@@ -122,47 +122,42 @@ const seedDatabase = async () => {
   try {
     await client.query("BEGIN");
 
-    // Run migrations first - with error handling
-    console.log("[*] Running migrations...");
+    // Setup tables
+    console.log("[*] Setting up tables...");
     try {
-      // Try to drop old ENUM type if it exists
-      try {
-        await client.query("DROP TYPE IF EXISTS difficulty CASCADE");
-      } catch (e) {
-        console.log("[!] Could not drop ENUM type");
-      }
+      // Drop old ENUM type if it exists
+      await client.query("DROP TYPE IF EXISTS difficulty CASCADE");
+    } catch (e) {}
 
-      const migrationFile = path.join(__dirname, "../migrations/003_add_exam_sets.sql");
-      if (fs.existsSync(migrationFile)) {
-        const migrationSQL = fs.readFileSync(migrationFile, "utf-8");
-        await client.query(migrationSQL);
-        console.log("[✓] Migrations completed");
-      }
-    } catch (migrationError) {
-      console.log("[!] Migration error (continuing):", migrationError.message);
-      // Try creating tables with simpler SQL if migration fails
-      try {
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS exam_sets (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-            difficulty VARCHAR(20) DEFAULT 'beginner',
-            description TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-          )
-        `);
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS exam_set_questions (
-            exam_set_id INTEGER REFERENCES exam_sets(id) ON DELETE CASCADE,
-            question_id INTEGER REFERENCES questions(id) ON DELETE CASCADE,
-            PRIMARY KEY(exam_set_id, question_id)
-          )
-        `);
-        console.log("[✓] Tables created with simplified schema");
-      } catch (tableError) {
-        console.log("[!] Could not create tables:", tableError.message);
-      }
+    // Create exam_sets and related tables
+    try {
+      await client.query("DROP TABLE IF EXISTS exam_set_questions CASCADE");
+      await client.query("DROP TABLE IF EXISTS exam_sets CASCADE");
+
+      await client.query(`
+        CREATE TABLE exam_sets (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+          difficulty VARCHAR(20) DEFAULT 'beginner',
+          description TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(category_id, name)
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE exam_set_questions (
+          exam_set_id INTEGER NOT NULL REFERENCES exam_sets(id) ON DELETE CASCADE,
+          question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+          PRIMARY KEY(exam_set_id, question_id)
+        )
+      `);
+
+      console.log("[✓] Tables created successfully");
+    } catch (tableError) {
+      console.log("[!] Table setup error:", tableError.message);
+      throw tableError;
     }
 
     // Clear existing data
