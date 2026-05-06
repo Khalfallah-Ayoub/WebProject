@@ -1,37 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { adminLogin, startQuiz, getExamSetsByAllCategories } from '../services/api';
+import { adminLogin, getQuizGroups, getCategoriesByGroup, startQuizByGroup } from '../services/api';
 
 export default function LoginPage({ onLogin }) {
-  const [userType, setUserType] = useState('admin'); // 'admin' or 'student'
+  const [userType, setUserType] = useState('admin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState('type'); // 'type', 'login', or 'selectExamSet'
-  const [categoriesWithExamSets, setCategoriesWithExamSets] = useState([]);
+  const [step, setStep] = useState('type'); // 'type', 'login', 'selectGroup', 'selectCategory'
+  const [groups, setGroups] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedExamSet, setSelectedExamSet] = useState(null);
-  const [loadingExamSets, setLoadingExamSets] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
   useEffect(() => {
-    if (userType === 'student' && step === 'selectExamSet') {
-      fetchCategories();
+    if (userType === 'student' && step === 'selectGroup') {
+      fetchGroups();
     }
   }, [userType, step]);
 
-  const fetchCategories = async () => {
-    setLoadingExamSets(true);
+  useEffect(() => {
+    if (selectedGroup && step === 'selectCategory') {
+      fetchCategories(selectedGroup.id);
+    }
+  }, [selectedGroup, step]);
+
+  const fetchGroups = async () => {
+    setLoadingGroups(true);
     try {
-      const response = await getExamSetsByAllCategories();
-      const categories = response.categoriesWithExamSets || [];
-      // Don't filter - show all categories, even if no exam sets
-      setCategoriesWithExamSets(categories);
+      const response = await getQuizGroups();
+      setGroups(response.groups || []);
+      setError('');
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+      setError('Failed to load groups. Please try again.');
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const fetchCategories = async (groupId) => {
+    setLoadingGroups(true);
+    try {
+      const response = await getCategoriesByGroup(groupId);
+      setCategories(response.categories || []);
       setError('');
     } catch (err) {
       console.error('Failed to fetch categories:', err);
       setError('Failed to load categories. Please try again.');
     } finally {
-      setLoadingExamSets(false);
+      setLoadingGroups(false);
     }
   };
 
@@ -66,16 +85,15 @@ export default function LoginPage({ onLogin }) {
       return;
     }
 
-    // Allow starting quiz without exam set selection (will use random questions)
-    // But if category has exam sets, user must select one
-    if (!selectedExamSet && selectedCategory && selectedCategory.exam_sets && selectedCategory.exam_sets.length > 0) {
-      setError('Please select an exam set');
+    if (!selectedGroup) {
+      setError('Please select a group');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await startQuiz(username, selectedExamSet);
+      const categoryId = selectedCategory ? selectedCategory.id : null;
+      const response = await startQuizByGroup(username, selectedGroup.id, categoryId);
       if (response.sessionId) {
         localStorage.setItem('sessionId', response.sessionId);
         localStorage.setItem('userType', 'student');
@@ -105,7 +123,7 @@ export default function LoginPage({ onLogin }) {
     if (userType === 'admin') {
       handleAdminLogin(e);
     } else {
-      setStep('selectExamSet');
+      setStep('selectGroup');
     }
   };
 
@@ -219,10 +237,10 @@ export default function LoginPage({ onLogin }) {
             </>
           )}
 
-          {step === 'selectExamSet' && (
+          {step === 'selectGroup' && (
             <>
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-800">[?] Select Test Group</h1>
+                <h1 className="text-2xl font-bold text-gray-800">[📚] Select Group</h1>
                 <p className="text-gray-600 mt-2">Welcome, {username}!</p>
               </div>
 
@@ -232,65 +250,118 @@ export default function LoginPage({ onLogin }) {
                 </div>
               )}
 
-              {loadingExamSets ? (
+              {loadingGroups ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-600">Loading test groups...</p>
+                  <p className="text-gray-600">Loading groups...</p>
                 </div>
-              ) : categoriesWithExamSets.length === 0 ? (
+              ) : groups.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-600">No categories available. Please contact admin.</p>
+                  <p className="text-gray-600">No groups available. Please contact admin.</p>
                 </div>
               ) : (
-              <div className="space-y-4 mb-6">
-                {categoriesWithExamSets.map((category) => (
-                  <div key={category.id}>
+                <div className="space-y-3 mb-6">
+                  {groups.map((group) => (
                     <button
+                      key={group.id}
                       onClick={() => {
-                        setSelectedCategory(selectedCategory?.id === category.id ? null : category);
-                        setSelectedExamSet(null);
+                        setSelectedGroup(group);
+                        setSelectedCategory(null);
+                        setStep('selectCategory');
                       }}
+                      className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
+                        selectedGroup?.id === group.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{group.name}</span>
+                        <span className="text-sm opacity-75">{group.question_count} Q</span>
+                      </div>
+                      {group.description && (
+                        <div className="text-sm opacity-75 mt-1">{group.description}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setStep('type');
+                  setSelectedGroup(null);
+                  setError('');
+                }}
+                className="w-full py-2 rounded-lg font-semibold bg-gray-300 text-gray-700 hover:bg-gray-400 transition-all"
+              >
+                [-] Back
+              </button>
+            </>
+          )}
+
+          {step === 'selectCategory' && selectedGroup && (
+            <>
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold text-gray-800">[📖] Select Category</h1>
+                <p className="text-gray-600 mt-2">{selectedGroup.name}</p>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                  [!] {error}
+                </div>
+              )}
+
+              {loadingGroups ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Loading categories...</p>
+                </div>
+              ) : categories.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No categories available in this group.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 mb-6">
+                  {/* Random/Mixed Option */}
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
+                      selectedCategory === null
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>🎲 Random/Mixed</span>
+                      <span className="text-sm opacity-75">All categories</span>
+                    </div>
+                  </button>
+
+                  {/* Categories */}
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category)}
                       className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
                         selectedCategory?.id === category.id
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                       }`}
                     >
-                      {category.name}
-                      {selectedCategory?.id === category.id && category.exam_sets && category.exam_sets.length > 0 && (
-                        <span className="text-sm ml-2">({category.exam_sets.length} [*] groups)</span>
-                      )}
-                      {selectedCategory?.id === category.id && (!category.exam_sets || category.exam_sets.length === 0) && (
-                        <span className="text-sm ml-2">[No groups created]</span>
-                      )}
-                    </button>
-
-                    {selectedCategory?.id === category.id && category.exam_sets && category.exam_sets.length > 0 && (
-                      <div className="mt-2  space-y-2 ml-4">
-                        {category.exam_sets.map((examSet) => (
-                          <button
-                            key={examSet.id}
-                            onClick={() => setSelectedExamSet(examSet.id)}
-                            className={`w-full p-3 rounded text-left text-sm transition-all ${
-                              selectedExamSet === examSet.id
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            [{examSet.difficulty[0].toUpperCase()}] {examSet.name} ({examSet.questionCount} Q)
-                          </button>
-                        ))}
+                      <div className="flex justify-between items-center">
+                        <span>{category.name}</span>
+                        <span className="text-sm opacity-75">{category.question_count} Q</span>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
               )}
 
               <form onSubmit={handleStudentQuizStart}>
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-2 rounded-lg font-semibold text-white transition-all ${
+                  className={`w-full py-2 rounded-lg font-semibold text-white transition-all mb-3 ${
                     loading
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-green-600 hover:bg-green-700'
@@ -302,12 +373,11 @@ export default function LoginPage({ onLogin }) {
 
               <button
                 onClick={() => {
-                  setStep('type');
+                  setStep('selectGroup');
                   setSelectedCategory(null);
-                  setSelectedExamSet(null);
                   setError('');
                 }}
-                className="w-full mt-3 py-2 rounded-lg font-semibold bg-gray-300 text-gray-700 hover:bg-gray-400 transition-all"
+                className="w-full py-2 rounded-lg font-semibold bg-gray-300 text-gray-700 hover:bg-gray-400 transition-all"
               >
                 [-] Back
               </button>

@@ -101,12 +101,79 @@ export const getExamSetsByAllCategories = async () => {
   return response.json();
 };
 
+// Groups and Categories APIs - New system
+export const getQuizGroups = async () => {
+  const response = await fetch(`${API_URL}/quiz/groups`);
+  return response.json();
+};
+
+export const getCategoriesByGroup = async (groupId) => {
+  const response = await fetch(`${API_URL}/quiz/groups/${groupId}/categories`);
+  return response.json();
+};
+
+// Admin APIs for Groups
+export const getAdminGroups = async (token) => {
+  const response = await fetch(`${API_URL}/admin/groups`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return response.json();
+};
+
+export const createGroup = async (token, name, description) => {
+  const response = await fetch(`${API_URL}/admin/groups`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name, description }),
+  });
+  return response.json();
+};
+
+export const updateGroup = async (token, id, name, description) => {
+  const response = await fetch(`${API_URL}/admin/groups/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name, description }),
+  });
+  return response.json();
+};
+
+export const deleteGroup = async (token, id) => {
+  const response = await fetch(`${API_URL}/admin/groups/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return response.json();
+};
+
+export const getGroupQuestions = async (token, groupId) => {
+  const response = await fetch(`${API_URL}/admin/groups/${groupId}/questions`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return response.json();
+};
+
 // Quiz APIs
 export const startQuiz = async (username, examSetId = null) => {
   const response = await fetch(`${API_URL}/quiz/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, examSetId }),
+  });
+  return response.json();
+};
+
+export const startQuizByGroup = async (username, groupId, categoryId = null) => {
+  const response = await fetch(`${API_URL}/quiz/start-by-group`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, groupId, categoryId }),
   });
   return response.json();
 };

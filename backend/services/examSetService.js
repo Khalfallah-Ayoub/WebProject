@@ -51,32 +51,41 @@ const getExamSetsByCategory = async (categoryId) => {
 
 // Get all categories with their exam sets
 const getExamSetsByAllCategories = async () => {
-  const result = await pool.query(
-    `SELECT c.id, c.name,
-            COALESCE(
-              json_agg(
-                jsonb_build_object(
-                  'id', es.id,
-                  'name', es.name,
-                  'difficulty', es.difficulty,
-                  'description', es.description,
-                  'questionCount', es.question_count
-                ) ORDER BY es.difficulty
-              ) FILTER (WHERE es.id IS NOT NULL),
-              '[]'::json
-            ) as exam_sets
-     FROM categories c
-     LEFT JOIN (
-       SELECT es.*, COUNT(esq.question_id) as question_count
-       FROM exam_sets es
-       LEFT JOIN exam_set_questions esq ON es.id = esq.exam_set_id
-       GROUP BY es.id
-     ) es ON c.id = es.category_id
-     GROUP BY c.id, c.name
-     ORDER BY c.name ASC`
+  // First get all exam sets with their question counts
+  const examSetsResult = await pool.query(
+    `SELECT es.id, es.category_id, es.name, es.difficulty, es.description,
+            COUNT(esq.question_id) as question_count
+     FROM exam_sets es
+     LEFT JOIN exam_set_questions esq ON es.id = esq.exam_set_id
+     GROUP BY es.id, es.category_id, es.name, es.difficulty, es.description
+     ORDER BY es.category_id, es.difficulty`
   );
 
-  return { categoriesWithExamSets: result.rows };
+  // Get all categories
+  const categoriesResult = await pool.query(
+    `SELECT id, name FROM categories ORDER BY name ASC`
+  );
+
+  // Build response with exam sets grouped by category
+  const categoriesWithExamSets = categoriesResult.rows.map(category => {
+    const examSets = examSetsResult.rows
+      .filter(es => es.category_id === category.id)
+      .map(es => ({
+        id: es.id,
+        name: es.name,
+        difficulty: es.difficulty,
+        description: es.description,
+        questionCount: parseInt(es.question_count)
+      }));
+
+    return {
+      id: category.id,
+      name: category.name,
+      exam_sets: examSets
+    };
+  });
+
+  return { categoriesWithExamSets };
 };
 
 // Get exam set questions

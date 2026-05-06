@@ -15,6 +15,14 @@ const {
   deleteAdminCategory,
 } = require("../controllers/admin/categoryController");
 const {
+  getAdminGroups,
+  getAdminGroupById,
+  createAdminGroup,
+  updateAdminGroup,
+  deleteAdminGroup,
+  getGroupQuestionsController,
+} = require("../controllers/admin/groupController");
+const {
   getExamSets,
   createAdminExamSet,
   getQuestions,
@@ -38,6 +46,14 @@ router.get("/categories/:id", asyncHandler(getAdminCategoryById));
 router.post("/categories", asyncHandler(createAdminCategory));
 router.put("/categories/:id", asyncHandler(updateAdminCategory));
 router.delete("/categories/:id", asyncHandler(deleteAdminCategory));
+
+// Group management routes (protected)
+router.get("/groups", asyncHandler(getAdminGroups));
+router.get("/groups/:id", asyncHandler(getAdminGroupById));
+router.post("/groups", asyncHandler(createAdminGroup));
+router.put("/groups/:id", asyncHandler(updateAdminGroup));
+router.delete("/groups/:id", asyncHandler(deleteAdminGroup));
+router.get("/groups/:id/questions", asyncHandler(getGroupQuestionsController));
 
 // Question management routes (protected)
 router.get("/questions", asyncHandler(getAdminQuestions));

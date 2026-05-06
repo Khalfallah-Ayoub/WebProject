@@ -1,0 +1,110 @@
+{
+  "info": {
+    "name": "نظام الاختبارات - Quiz System API",
+    "description": "مجموعة APIs لنظام الاختبارات الجديد",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "👥 المجموعات للطالب",
+      "item": [
+        {
+          "name": "جلب جميع المجموعات",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/quiz/groups"
+          }
+        },
+        {
+          "name": "جلب الفئات في مجموعة",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/quiz/groups/{{group_id}}/categories"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 الاختبار للطالب",
+      "item": [
+        {
+          "name": "بدء اختبار من فئة محددة",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"أحمد محمود\", \"groupId\": 1, \"categoryId\": 5}"
+            },
+            "url": "{{base_url}}/quiz/start-by-group"
+          }
+        },
+        {
+          "name": "بدء اختبار عشوائي من مجموعة",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"محمد علي\", \"groupId\": 1}"
+            },
+            "url": "{{base_url}}/quiz/start-by-group"
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ المجموعات للإدارة",
+      "item": [
+        {
+          "name": "جلب جميع المجموعات",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": "{{base_url}}/admin/groups"
+          }
+        },
+        {
+          "name": "إنشاء مجموعة جديدة",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"لغات البرمجة\", \"description\": \"أسئلة عن لغات البرمجة\"}"
+            },
+            "url": "{{base_url}}/admin/groups"
+          }
+        }
+      ]
+    },
+    {
+      "name": "❓ الأسئلة للإدارة",
+      "item": [
+        {
+          "name": "إنشاء سؤال مع المجموعة والفئة",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"ما الفرق بين var و let؟\", \"type\": \"MCQ\", \"categoryId\": 5, \"groupId\": 1, \"answers\": [{\"text\": \"var عام، let محدود\", \"isCorrect\": true}, {\"text\": \"لا يوجد فرق\", \"isCorrect\": false}]}"
+            },
+            "url": "{{base_url}}/admin/questions"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:3000"},
+    {"key": "admin_token", "value": ""},
+    {"key": "group_id", "value": "1"}
+  ]
+}

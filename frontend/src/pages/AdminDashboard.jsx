@@ -9,11 +9,16 @@ import {
   updateQuestion,
   deleteQuestion,
   getAdminResults,
+  getAdminGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
 } from '../services/api';
 
 export default function AdminDashboard({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('categories'); // 'categories', 'questions' or 'results'
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'categories', 'questions' or 'results'
   const [categories, setCategories] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,11 +28,20 @@ export default function AdminDashboard({ user, onLogout }) {
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState('');
 
+  // Group form states
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [groupForm, setGroupForm] = useState({
+    name: '',
+    description: '',
+  });
+
   // Question form states
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [questionForm, setQuestionForm] = useState({
     categoryId: '',
+    groupId: '',
     title: '',
     type: 'SCQ',
     answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }],
@@ -50,7 +64,9 @@ export default function AdminDashboard({ user, onLogout }) {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    if (activeTab === 'categories') {
+    if (activeTab === 'groups') {
+      fetchGroups();
+    } else if (activeTab === 'categories') {
       fetchCategories();
     } else if (activeTab === 'questions') {
       fetchQuestions();
@@ -93,6 +109,19 @@ export default function AdminDashboard({ user, onLogout }) {
       setError('');
     } catch (err) {
       setError('Failed to fetch results');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGroups = async () => {
+    setLoading(true);
+    try {
+      const response = await getAdminGroups(token);
+      setGroups(response.groups || []);
+      setError('');
+    } catch (err) {
+      setError('Failed to fetch groups');
     } finally {
       setLoading(false);
     }
@@ -172,6 +201,81 @@ export default function AdminDashboard({ user, onLogout }) {
     }
   };
 
+  // Group handlers
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!groupForm.name.trim()) {
+      setError('Group name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await createGroup(token, groupForm.name, groupForm.description);
+      if (response.group) {
+        setGroups([...groups, response.group]);
+        setGroupForm({ name: '', description: '' });
+        setSuccess('Group created successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.error || 'Failed to create group');
+      }
+    } catch (err) {
+      setError('Failed to create group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateGroup = async (id) => {
+    if (!groupForm.name.trim()) {
+      setError('Group name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await updateGroup(token, id, groupForm.name, groupForm.description);
+      if (response.group) {
+        setGroups(
+          groups.map((grp) => (grp.id === id ? response.group : grp))
+        );
+        setEditingGroupId(null);
+        setGroupForm({ name: '', description: '' });
+        setSuccess('Group updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.error || 'Failed to update group');
+      }
+    } catch (err) {
+      setError('Failed to update group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteGroup = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this group?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await deleteGroup(token, id);
+      if (response.deleted) {
+        setGroups(groups.filter((grp) => grp.id !== id));
+        setSuccess('Group deleted successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.error || 'Failed to delete group');
+      }
+    } catch (err) {
+      setError('Failed to delete group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Question handlers
   const handleSubmitQuestion = async (e) => {
     e.preventDefault();
@@ -196,6 +300,7 @@ export default function AdminDashboard({ user, onLogout }) {
       let response;
       const questionData = {
         categoryId: parseInt(questionForm.categoryId),
+        groupId: questionForm.groupId ? parseInt(questionForm.groupId) : null,
         title: questionForm.title,
         type: questionForm.type,
         answers: questionForm.answers,
@@ -215,7 +320,7 @@ export default function AdminDashboard({ user, onLogout }) {
           setQuestions([...questions, { ...response.question, answers: response.answers }]);
           setSuccess('Question created successfully!');
         }
-        setQuestionForm({ categoryId: '', title: '', type: 'SCQ', answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }] });
+        setQuestionForm({ categoryId: '', groupId: '', title: '', type: 'SCQ', answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }] });
         setEditingQuestionId(null);
         setShowQuestionForm(false);
         setTimeout(() => setSuccess(''), 3000);
@@ -233,6 +338,7 @@ export default function AdminDashboard({ user, onLogout }) {
     setEditingQuestionId(question.id);
     setQuestionForm({
       categoryId: question.categoryId,
+      groupId: question.groupId || '',
       title: question.title,
       type: question.type,
       answers: question.answers || [{ text: '', isCorrect: false }],
@@ -304,6 +410,16 @@ export default function AdminDashboard({ user, onLogout }) {
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
           <button
+            onClick={() => setActiveTab('groups')}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+              activeTab === 'groups'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            [G] Groups
+          </button>
+          <button
             onClick={() => setActiveTab('categories')}
             className={`px-6 py-2 rounded-lg font-semibold transition-all ${
               activeTab === 'categories'
@@ -344,6 +460,129 @@ export default function AdminDashboard({ user, onLogout }) {
         {success && (
           <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
             [OK] {success}
+          </div>
+        )}
+
+        {/* Groups Tab */}
+        {activeTab === 'groups' && (
+          <div className="space-y-6">
+            {/* Create Group Form */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[+] Add New Group</h2>
+              <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Group Name</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="e.g., لغات البرمجة"
+                    value={groupForm.name}
+                    onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Description</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="Group description"
+                    value={groupForm.description}
+                    onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                    disabled={loading}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary"
+                >
+                  {loading ? 'Adding...' : 'Add Group'}
+                </button>
+              </form>
+            </div>
+
+            {/* Groups List */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">[*] Groups</h2>
+              {loading && !groups.length ? (
+                <p className="text-gray-600">Loading...</p>
+              ) : groups.length === 0 ? (
+                <p className="text-gray-600">No groups yet. Create one above!</p>
+              ) : (
+                <div className="space-y-3">
+                  {groups.map((group) => (
+                    <div key={group.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          {editingGroupId === group.id ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                className="input w-full"
+                                value={groupForm.name}
+                                onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                              />
+                              <input
+                                type="text"
+                                className="input w-full"
+                                value={groupForm.description}
+                                onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-gray-800 text-lg">{group.name}</h3>
+                              {group.description && <p className="text-gray-600 mt-1">{group.description}</p>}
+                              <p className="text-sm text-gray-500 mt-1">Questions: {group.question_count || 0}</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          {editingGroupId === group.id ? (
+                            <>
+                              <button
+                                onClick={() => handleUpdateGroup(group.id)}
+                                className="text-green-600 hover:text-green-800 font-semibold"
+                              >
+                                [S] Save
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingGroupId(null);
+                                  setGroupForm({ name: '', description: '' });
+                                }}
+                                className="text-gray-600 hover:text-gray-800 font-semibold"
+                              >
+                                [-] Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingGroupId(group.id);
+                                  setGroupForm({ name: group.name, description: group.description || '' });
+                                }}
+                                className="text-blue-600 hover:text-blue-800 font-semibold"
+                              >
+                                [E] Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGroup(group.id)}
+                                className="text-red-600 hover:text-red-800 font-semibold"
+                              >
+                                [X] Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -521,7 +760,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 </h2>
                 <form onSubmit={handleSubmitQuestion} className="space-y-4">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Category</label>
+                    <label className="block text-gray-700 font-semibold mb-2">Category *</label>
                     <select
                       className="input w-full"
                       value={questionForm.categoryId}
@@ -532,6 +771,21 @@ export default function AdminDashboard({ user, onLogout }) {
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Group (Optional)</label>
+                    <select
+                      className="input w-full"
+                      value={questionForm.groupId}
+                      onChange={(e) => setQuestionForm({ ...questionForm, groupId: e.target.value })}
+                    >
+                      <option value="">No Group (Generic Question)</option>
+                      {groups.map(grp => (
+                        <option key={grp.id} value={grp.id}>{grp.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Select a group to associate this question with a specific group</p>
                   </div>
 
                   <div>
@@ -628,7 +882,7 @@ export default function AdminDashboard({ user, onLogout }) {
                       onClick={() => {
                         setShowQuestionForm(false);
                         setEditingQuestionId(null);
-                        setQuestionForm({ categoryId: '', title: '', type: 'SCQ', answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }] });
+                        setQuestionForm({ categoryId: '', groupId: '', title: '', type: 'SCQ', answers: [{ text: '', isCorrect: false }, { text: '', isCorrect: true }] });
                       }}
                       className="btn-outline"
                     >
@@ -656,7 +910,7 @@ export default function AdminDashboard({ user, onLogout }) {
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800">{question.title}</h3>
                           <p className="text-sm text-gray-600 mt-1">
-                            <span className="font-semibold">Type:</span> {question.type} | <span className="font-semibold">Category:</span> {question.categoryId}
+                            <span className="font-semibold">Type:</span> {question.type} | <span className="font-semibold">Category:</span> {question.categoryId} {question.groupId && `| Group: ${question.groupId}`}
                           </p>
                           {question.answers && question.answers.length > 0 && (
                             <div className="mt-2 text-sm">

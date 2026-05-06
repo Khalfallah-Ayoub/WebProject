@@ -1,19 +1,23 @@
 const express = require("express");
-const { startQuizSession, getQuizSession } = require("../controllers/quiz/sessionController");
+const {
+  startQuizSession,
+  getQuizSession,
+  getGroups,
+  getCategoriesByGroupController,
+  startQuizByGroup
+} = require("../controllers/quiz/sessionController");
 const { submitQuizAnswer, submitQuizSession } = require("../controllers/quiz/answerController");
 const { asyncHandler } = require("../middleware/asyncHandler");
-const { getExamSetsByAllCategories } = require("../services/examSetService");
 
 const router = express.Router();
 
-// Public endpoints (must come BEFORE :sessionId route)
-router.get("/categories", asyncHandler(async (req, res) => {
-  const result = await getExamSetsByAllCategories();
-  res.json(result);
-}));
+// Public endpoints - Quiz Selection Flow
+router.get("/groups", asyncHandler(getGroups));
+router.get("/groups/:groupId/categories", asyncHandler(getCategoriesByGroupController));
 
-// Sessions endpoints
-router.post("/start", asyncHandler(startQuizSession));
+// Start quiz endpoints
+router.post("/start", asyncHandler(startQuizSession)); // legacy with examSetId
+router.post("/start-by-group", asyncHandler(startQuizByGroup)); // new: with groupId and optional categoryId
 router.post("/answer", asyncHandler(submitQuizAnswer));
 router.post("/submit", asyncHandler(submitQuizSession));
 

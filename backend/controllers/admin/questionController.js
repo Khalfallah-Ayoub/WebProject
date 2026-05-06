@@ -15,6 +15,7 @@ const createAdminQuestion = async (req, res) => {
     title: req.body.title,
     type: req.body.type,
     categoryId: req.body.categoryId ?? req.body.category_id,
+    groupId: req.body.groupId ?? req.body.group_id,
     answers: req.body.answers,
   });
   res.status(201).json(result);
@@ -26,6 +27,7 @@ const updateAdminQuestion = async (req, res) => {
     title: req.body.title,
     type: req.body.type,
     categoryId: req.body.categoryId ?? req.body.category_id,
+    groupId: req.body.groupId ?? req.body.group_id,
     answers: req.body.answers,
   });
   res.json(result);

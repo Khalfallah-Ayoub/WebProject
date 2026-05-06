@@ -273,9 +273,143 @@ const submitQuiz = async (sessionId) => {
   return { sessionId: normalizedSessionId, score, totalQuestions: rows.length, percentage };
 };
 
+// Get all groups for quiz selection
+const getGroupsForQuiz = async () => {
+  const { rows } = await pool.query(
+    `SELECT g.id, g.name, g.description, COUNT(DISTINCT q.id) as question_count
+     FROM groups g
+     LEFT JOIN questions q ON q.group_id = g.id
+     GROUP BY g.id, g.name, g.description
+     ORDER BY g.name ASC`
+  );
+  return rows;
+};
+
+// Get categories in a specific group
+const getCategoriesByGroup = async (groupId) => {
+  const normalizedGroupId = Number(groupId);
+  if (Number.isNaN(normalizedGroupId)) {
+    const error = new Error("Invalid group id");
+    error.status = 400;
+    throw error;
+  }
+
+  const groupCheck = await pool.query(
+    "SELECT id FROM groups WHERE id = $1",
+    [normalizedGroupId]
+  );
+  if (groupCheck.rows.length === 0) {
+    const error = new Error("Group not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT c.id, c.name, COUNT(q.id) as question_count
+     FROM categories c
+     LEFT JOIN questions q ON q.category_id = c.id AND q.group_id = $1
+     WHERE q.id IS NOT NULL OR c.id IN (SELECT DISTINCT category_id FROM questions WHERE group_id = $1)
+     GROUP BY c.id, c.name
+     ORDER BY c.name ASC`,
+    [normalizedGroupId]
+  );
+
+  return rows;
+};
+
+// Start quiz from group and category
+const startQuizByGroupAndCategory = async (username, groupId, categoryId) => {
+  const normalizedUser = typeof username === "string" ? username.trim() : "";
+  if (!normalizedUser) {
+    const error = new Error("username is required");
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedGroupId = Number(groupId);
+  const normalizedCategoryId = categoryId ? Number(categoryId) : null;
+
+  if (Number.isNaN(normalizedGroupId)) {
+    const error = new Error("Invalid group id");
+    error.status = 400;
+    throw error;
+  }
+
+  // Verify group exists
+  const groupCheck = await pool.query(
+    "SELECT id FROM groups WHERE id = $1",
+    [normalizedGroupId]
+  );
+  if (groupCheck.rows.length === 0) {
+    const error = new Error("Group not found");
+    error.status = 404;
+    throw error;
+  }
+
+  let query = `SELECT q.id FROM questions WHERE q.group_id = $1`;
+  let params = [normalizedGroupId];
+
+  if (normalizedCategoryId) {
+    // Verify category exists in this group
+    const categoryCheck = await pool.query(
+      `SELECT DISTINCT c.id FROM categories c
+       JOIN questions q ON q.category_id = c.id
+       WHERE c.id = $1 AND q.group_id = $2`,
+      [normalizedCategoryId, normalizedGroupId]
+    );
+    if (categoryCheck.rows.length === 0) {
+      const error = new Error("Category not found in this group");
+      error.status = 400;
+      throw error;
+    }
+    query += ` AND q.category_id = $2`;
+    params.push(normalizedCategoryId);
+  }
+
+  const { rows: questionRows } = await pool.query(query, params);
+
+  if (questionRows.length === 0) {
+    const error = new Error("No questions available in this group/category");
+    error.status = 400;
+    throw error;
+  }
+
+  const selectedIds = shuffle(questionRows.map(row => row.id));
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const sessionResult = await client.query(
+      "INSERT INTO quiz_sessions (username) VALUES ($1) RETURNING id",
+      [normalizedUser]
+    );
+    const sessionId = sessionResult.rows[0].id;
+
+    for (const questionId of selectedIds) {
+      await client.query(
+        "INSERT INTO session_questions (session_id, question_id) VALUES ($1, $2)",
+        [sessionId, questionId]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    const questions = await fetchSessionQuestions(sessionId);
+    return { sessionId, questions };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   startQuiz,
   getQuiz,
   submitAnswer,
   submitQuiz,
+  getGroupsForQuiz,
+  getCategoriesByGroup,
+  startQuizByGroupAndCategory,
 };
