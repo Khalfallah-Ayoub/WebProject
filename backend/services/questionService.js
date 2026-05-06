@@ -249,25 +249,44 @@ const deleteQuestion = async (id) => {
 };
 
 const getAllQuestionsWithAnswers = async () => {
-  const result = await pool.query(
-    `SELECT q.id, q.title, q.type, q.category_id as "categoryId", q.group_id as "groupId",
-            array_agg(jsonb_build_object('id', a.id, 'text', a.text, 'isCorrect', a.is_correct)) as "answers"
-     FROM questions q
-     LEFT JOIN answers a ON q.id = a.question_id
-     GROUP BY q.id, q.title, q.type, q.category_id, q.group_id
-     ORDER BY q.id`
+  // Get all questions
+  const questionsResult = await pool.query(
+    `SELECT id, title, type, category_id, group_id
+     FROM questions
+     ORDER BY id`
   );
 
-  return {
-    questions: result.rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      type: row.type,
-      categoryId: row.categoryId,
-      groupId: row.groupId,
-      answers: row.answers || [],
-    })),
-  };
+  // Get all answers
+  const answersResult = await pool.query(
+    `SELECT id, question_id, text, is_correct
+     FROM answers
+     ORDER BY question_id, id`
+  );
+
+  // Build a map of answers by question_id
+  const answersMap = {};
+  answersResult.rows.forEach(answer => {
+    if (!answersMap[answer.question_id]) {
+      answersMap[answer.question_id] = [];
+    }
+    answersMap[answer.question_id].push({
+      id: answer.id,
+      text: answer.text,
+      isCorrect: answer.is_correct,
+    });
+  });
+
+  // Combine questions with their answers
+  const questions = questionsResult.rows.map(q => ({
+    id: q.id,
+    title: q.title,
+    type: q.type,
+    categoryId: q.category_id,
+    groupId: q.group_id,
+    answers: answersMap[q.id] || [],
+  }));
+
+  return { questions };
 };
 
 module.exports = {
